@@ -1113,7 +1113,10 @@ impl From<Ipv6Addr> for Name {
 
 impl PartialEq<Self> for Name {
     fn eq(&self, other: &Self) -> bool {
-        self.cmp_with_f::<CaseInsensitive>(other) == Ordering::Equal
+        match self.is_fqdn == other.is_fqdn {
+            true => self.cmp_with_f::<CaseInsensitive>(other) == Ordering::Equal,
+            false => false,
+        }
     }
 }
 
@@ -1419,7 +1422,7 @@ impl<'de> Deserialize<'de> for Name {
 mod tests {
     #![allow(clippy::dbg_macro, clippy::print_stdout)]
 
-    use std::cmp::Ordering;
+    use std::{cmp::Ordering, hash::DefaultHasher};
     use std::iter;
     use std::str::FromStr;
 
@@ -2126,5 +2129,21 @@ mod tests {
 
         let name = Name::from_utf8(".").unwrap();
         assert!(name.is_fqdn());
+    }
+
+    #[test]
+    fn test_hash() {
+        // verify that two identical names with and without the trailing dot hashes to the same value
+        let mut hasher = DefaultHasher::new();
+        let with_dot = Name::from_utf8("com.").unwrap();
+        with_dot.hash(&mut hasher);
+        let hash_with_dot = hasher.finish();
+
+        let mut hasher = DefaultHasher::new();
+        let without_dot = Name::from_utf8("com").unwrap();
+        without_dot.hash(&mut hasher);
+        let hash_without_dot = hasher.finish();
+        assert_eq!(with_dot, without_dot);
+        assert_eq!(hash_with_dot, hash_without_dot);
     }
 }
